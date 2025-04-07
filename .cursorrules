@@ -1,0 +1,55 @@
+# MERN + Cursor AI Project Context
+
+## Project Overview
+We're building a full-stack MERN application that lets users input queries and receive AI-generated responses using Cursor AI. The app will:
+- Process user queries through a React frontend
+- Handle requests via a Node.js/Express backend
+- Store query/response history in MongoDB
+- Implement user authentication with JWT
+- Deploy frontend and backend on Vercel, database on MongoDB Atlas
+
+## Tech Stack
+- **Frontend**: React.js (using Vite), TailwindCSS, Shadcn
+- **Backend**: Node.js, Express.js
+- **Database**: MongoDB with Mongoose ORM
+- **Authentication**: JWT
+- **AI Integration**: Cursor AI API
+- **Deployment**: Vercel (frontend/backend), MongoDB Atlas (database)
+
+## Application Architecture
+
+### Frontend Components
+- **Auth Components**: Login/Register forms
+- **Query Interface**: Input field for user queries
+- **Response Display**: Area to show AI responses
+- **History Component**: Display past queries/responses
+
+### Backend Structure
+- **User Routes**: Authentication endpoints (register, login)
+- **AI Routes**: Endpoints for processing queries through Cursor AI
+- **History Routes**: CRUD operations for query history
+- **Middleware**: Authentication, error handling
+
+### Database Schema
+- **User Collection**: Store user credentials and profile info
+- **Query Collection**: Store user queries and AI responses
+
+## API Endpoints
+- `POST /api/auth/register`: Register new user
+- `POST /api/auth/login`: Login user
+- `POST /api/generate`: Process query with Cursor AI
+- `GET /api/history`: Get user's query history
+- `GET /api/history/:id`: Get specific query details
+- `DELETE /api/history/:id`: Delete query from history
+
+## Security Requirements
+- Secure storage of API keys using environment variables
+- JWT token-based authentication
+- Input validation on all endpoints
+- Protection against common web vulnerabilities
+
+## Deployment Strategy
+1. Setup MongoDB Atlas cluster
+2. Deploy backend API on Vercel
+3. Deploy React frontend on Vercel
+4. Configure necessary environment variables
