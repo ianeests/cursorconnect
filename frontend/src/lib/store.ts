@@ -1,6 +1,8 @@
 import { create } from 'zustand';
-import axios from 'axios';
 import { persist } from 'zustand/middleware';
+import { authService, queryService } from '../api';
+import { UserProfile, RegisterUserData, LoginUserData } from '../api/authService';
+import { QueryRequest, HistoryItem } from '../api/queryService';
 
 // Define types
 interface User {
@@ -27,6 +29,7 @@ interface AuthState {
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   loadUser: () => Promise<void>;
+  clearError: () => void;
 }
 
 interface QueryState {
@@ -38,6 +41,7 @@ interface QueryState {
   submitQuery: () => Promise<void>;
   clearQuery: () => void;
   clearResponse: () => void;
+  clearError: () => void;
 }
 
 interface HistoryState {
@@ -46,10 +50,8 @@ interface HistoryState {
   error: string | null;
   fetchHistory: () => Promise<void>;
   deleteHistoryItem: (id: string) => Promise<void>;
+  clearError: () => void;
 }
-
-// API base URL
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 // Create auth store with persistence
 export const useAuthStore = create<AuthState>()(
@@ -65,31 +67,25 @@ export const useAuthStore = create<AuthState>()(
       register: async (username, email, password) => {
         set({ isLoading: true, error: null });
         try {
-          const res = await axios.post(`${API_URL}/api/auth/register`, {
-            username,
-            email,
-            password
-          });
+          const userData: RegisterUserData = { username, email, password };
+          const response = await authService.register(userData);
           
-          localStorage.setItem('token', res.data.token);
+          localStorage.setItem('token', response.token);
           
           set({
-            token: res.data.token,
+            token: response.token,
+            user: response.user,
             isAuthenticated: true,
             isLoading: false
           });
-          
-          // Load user info after successful registration
-          const { loadUser } = get();
-          await loadUser();
-        } catch (err: any) {
+        } catch (error) {
           localStorage.removeItem('token');
           set({
             token: null,
             user: null,
             isAuthenticated: false,
             isLoading: false,
-            error: err.response?.data?.msg || 'Registration failed'
+            error: error instanceof Error ? error.message : 'Registration failed'
           });
         }
       },
@@ -97,30 +93,25 @@ export const useAuthStore = create<AuthState>()(
       login: async (email, password) => {
         set({ isLoading: true, error: null });
         try {
-          const res = await axios.post(`${API_URL}/api/auth/login`, {
-            email,
-            password
-          });
+          const userData: LoginUserData = { email, password };
+          const response = await authService.login(userData);
           
-          localStorage.setItem('token', res.data.token);
+          localStorage.setItem('token', response.token);
           
           set({
-            token: res.data.token,
+            token: response.token,
+            user: response.user,
             isAuthenticated: true,
             isLoading: false
           });
-          
-          // Load user info after successful login
-          const { loadUser } = get();
-          await loadUser();
-        } catch (err: any) {
+        } catch (error) {
           localStorage.removeItem('token');
           set({
             token: null,
             user: null,
             isAuthenticated: false,
             isLoading: false,
-            error: err.response?.data?.msg || 'Login failed'
+            error: error instanceof Error ? error.message : 'Login failed'
           });
         }
       },
@@ -150,38 +141,34 @@ export const useAuthStore = create<AuthState>()(
           return;
         }
         
-        const config = {
-          headers: {
-            'x-auth-token': token
-          }
-        };
-        
         // Only set loading if needed
         if (!state.isAuthenticated || !state.user) {
           set({ isLoading: true });
         }
         
         try {
-          const res = await axios.get(`${API_URL}/api/auth/profile`, config);
+          const user = await authService.getCurrentUser();
           
           set({
-            user: res.data,
+            user,
             isAuthenticated: true,
             isLoading: false,
             lastLoaded: now
           });
-        } catch (err) {
+        } catch (error) {
           localStorage.removeItem('token');
           set({
             token: null,
             user: null,
             isAuthenticated: false,
             isLoading: false,
-            error: 'Authentication failed',
+            error: error instanceof Error ? error.message : 'Authentication failed',
             lastLoaded: null
           });
         }
-      }
+      },
+      
+      clearError: () => set({ error: null })
     }),
     {
       name: 'auth-storage',
@@ -201,47 +188,37 @@ export const useQueryStore = create<QueryState>((set, get) => ({
   setQuery: (query) => set({ query }),
   
   submitQuery: async () => {
-    const token = useAuthStore.getState().token;
     const query = get().query;
     
-    if (!token || !query.trim()) {
-      set({ error: 'Please login and enter a query' });
+    if (!query.trim()) {
+      set({ error: 'Please enter a query' });
       return;
     }
-    
-    const config = {
-      headers: {
-        'x-auth-token': token,
-        'Content-Type': 'application/json'
-      }
-    };
     
     set({ isLoading: true, error: null });
     
     try {
-      const res = await axios.post(
-        `${API_URL}/api/generate`,
-        { query },
-        config
-      );
+      const queryData: QueryRequest = { query };
+      const result = await queryService.submitQuery(queryData);
       
       set({
-        response: res.data.response,
+        response: result.response,
         isLoading: false
       });
       
       // Refresh history after new query
       useHistoryStore.getState().fetchHistory();
-    } catch (err: any) {
+    } catch (error) {
       set({
         isLoading: false,
-        error: err.response?.data?.msg || 'Failed to get response'
+        error: error instanceof Error ? error.message : 'Failed to get response'
       });
     }
   },
   
   clearQuery: () => set({ query: '' }),
-  clearResponse: () => set({ response: '' })
+  clearResponse: () => set({ response: '' }),
+  clearError: () => set({ error: null })
 }));
 
 // Create history store
@@ -251,64 +228,40 @@ export const useHistoryStore = create<HistoryState>((set) => ({
   error: null,
   
   fetchHistory: async () => {
-    const token = useAuthStore.getState().token;
-    
-    if (!token) {
-      set({ error: 'Please login to view history' });
-      return;
-    }
-    
-    const config = {
-      headers: {
-        'x-auth-token': token
-      }
-    };
-    
     set({ isLoading: true, error: null });
     
     try {
-      const res = await axios.get(`${API_URL}/api/history`, config);
+      const history = await queryService.getHistory();
       set({
-        history: res.data,
+        history,
         isLoading: false
       });
-    } catch (err: any) {
+    } catch (error) {
       set({
         isLoading: false,
-        error: err.response?.data?.msg || 'Failed to fetch history'
+        error: error instanceof Error ? error.message : 'Failed to fetch history'
       });
     }
   },
   
   deleteHistoryItem: async (id) => {
-    const token = useAuthStore.getState().token;
-    
-    if (!token) {
-      set({ error: 'Please login to delete history' });
-      return;
-    }
-    
-    const config = {
-      headers: {
-        'x-auth-token': token
-      }
-    };
-    
     set({ isLoading: true, error: null });
     
     try {
-      await axios.delete(`${API_URL}/api/history/${id}`, config);
+      await queryService.deleteHistoryItem(id);
       
       // Remove the deleted item from state
       set((state) => ({
         history: state.history.filter(item => item.id !== id),
         isLoading: false
       }));
-    } catch (err: any) {
+    } catch (error) {
       set({
         isLoading: false,
-        error: err.response?.data?.msg || 'Failed to delete history item'
+        error: error instanceof Error ? error.message : 'Failed to delete history item'
       });
     }
-  }
+  },
+  
+  clearError: () => set({ error: null })
 })); 

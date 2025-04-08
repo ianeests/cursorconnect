@@ -3,8 +3,8 @@ import { useQueryStore, useAuthStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle, Loader2, Send, Brain, Sparkles } from 'lucide-react';
+import { Brain, Send, Sparkles } from 'lucide-react';
+import { ErrorAlert, LoadingSpinner } from '@/components/common';
 
 const Dashboard = () => {
   const user = useAuthStore((state) => state.user);
@@ -16,6 +16,7 @@ const Dashboard = () => {
   const submitQuery = useQueryStore((state) => state.submitQuery);
   const clearQuery = useQueryStore((state) => state.clearQuery);
   const clearResponse = useQueryStore((state) => state.clearResponse);
+  const clearError = useQueryStore((state) => state.clearError);
 
   const handleClearResponse = useCallback(() => {
     clearResponse();
@@ -59,12 +60,7 @@ const Dashboard = () => {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            {error && (
-              <Alert variant="destructive" className="text-sm py-2">
-                <AlertCircle className="h-3.5 w-3.5" />
-                <AlertDescription className="text-xs">{error}</AlertDescription>
-              </Alert>
-            )}
+            <ErrorAlert message={error} onClose={clearError} />
             
             <div>
               <Textarea
@@ -84,10 +80,10 @@ const Dashboard = () => {
                 disabled={isLoading || !query.trim()}
               >
                 {isLoading ? (
-                  <>
-                    <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />
-                    Processing
-                  </>
+                  <div className="flex items-center">
+                    <LoadingSpinner size="sm" />
+                    <span className="ml-1.5">Processing</span>
+                  </div>
                 ) : (
                   <>
                     <Send className="mr-1.5 h-3 w-3" />
