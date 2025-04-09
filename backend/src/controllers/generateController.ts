@@ -1,7 +1,6 @@
-import { Request, Response, NextFunction } from 'express';
+import { Response } from 'express';
 import generateService from '../services/generateService';
 import { RequestWithUser } from '../types';
-import { ApiError } from '../middleware/errorMiddleware';
 import Query from '../models/Query';
 import catchAsync from '../utils/catchAsync';
 
@@ -70,9 +69,9 @@ export const streamResponse = catchAsync(async (req: RequestWithUser, res: Respo
     
     res.write(`data: ${JSON.stringify({ content: '[DONE]' })}\n\n`);
     res.end();
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error in stream processing:', error);
-    res.write(`data: ${JSON.stringify({ error: error.message || 'An error occurred' })}\n\n`);
+    res.write(`data: ${JSON.stringify({ error: error instanceof Error ? error.message : 'An error occurred' })}\n\n`);
     res.end();
   }
 });

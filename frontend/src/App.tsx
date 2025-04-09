@@ -7,7 +7,6 @@ import { Loader2 } from "lucide-react";
 function App() {
   // Get the loadUser function directly from the store
   const loadUser = useAuthStore((state) => state.loadUser);
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const [isInitializing, setIsInitializing] = useState(true);
 
   // Create a memoized function that handles authentication safely

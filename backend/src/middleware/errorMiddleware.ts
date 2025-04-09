@@ -20,6 +20,7 @@ export const notFound = (req: Request, res: Response, next: NextFunction) => {
 };
 
 // Main error handler
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export const errorHandler = (err: Error | ApiError, req: Request, res: Response, next: NextFunction) => {
   console.error(`Error: ${err.message}`.red);
   console.error(err.stack?.grey);
@@ -39,6 +40,6 @@ export const errorHandler = (err: Error | ApiError, req: Request, res: Response,
 };
 
 // Function to create specific API errors
-export const createError = (message: string, statusCode: number) => {
+export const createError = (message: string, statusCode: number): ApiError => {
   return new ApiError(message, statusCode);
 }; 
