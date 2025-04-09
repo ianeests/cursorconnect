@@ -1,3 +1,4 @@
+// Add proper imports with type assertions to prevent TypeScript errors
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { authService, queryService } from '../api';
@@ -64,7 +65,7 @@ export const useAuthStore = create<AuthState>()(
       error: null,
       lastLoaded: null,
       
-      register: async (username, email, password) => {
+      register: async (username: string, email: string, password: string) => {
         set({ isLoading: true });
         try {
           const userData: RegisterUserData = { username, email, password };
@@ -91,7 +92,7 @@ export const useAuthStore = create<AuthState>()(
         }
       },
       
-      login: async (email, password) => {
+      login: async (email: string, password: string) => {
         set({ isLoading: true });
         try {
           const userData: LoginUserData = { email, password };
@@ -183,96 +184,99 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'auth-storage',
-      // Only persist token - other state will be rehydrated on load
       partialize: (state) => ({ token: state.token }),
     }
   )
 );
 
 // Create query store
-export const useQueryStore = create<QueryState>((set, get) => ({
-  query: '',
-  response: '',
-  isLoading: false,
-  error: null,
-  
-  setQuery: (query) => set({ query }),
-  
-  submitQuery: async () => {
-    const query = get().query;
+export const useQueryStore = create<QueryState>()(
+  (set, get) => ({
+    query: '',
+    response: '',
+    isLoading: false,
+    error: null,
     
-    if (!query.trim()) {
-      set({ error: 'Please enter a query' });
-      return;
-    }
+    setQuery: (query: string) => set({ query }),
     
-    set({ isLoading: true, error: null });
-    
-    try {
-      const queryData: QueryRequest = { query };
-      const result = await queryService.submitQuery(queryData);
+    submitQuery: async () => {
+      const query = get().query;
       
-      set({
-        response: result.response,
-        isLoading: false
-      });
+      if (!query.trim()) {
+        set({ error: 'Please enter a query' });
+        return;
+      }
       
-      // Refresh history after new query
-      useHistoryStore.getState().fetchHistory();
-    } catch (error) {
-      set({
-        isLoading: false,
-        error: error instanceof Error ? error.message : 'Failed to get response'
-      });
-    }
-  },
-  
-  clearQuery: () => set({ query: '' }),
-  clearResponse: () => set({ response: '' }),
-  clearError: () => set({ error: null })
-}));
+      set({ isLoading: true, error: null });
+      
+      try {
+        const queryData: QueryRequest = { query };
+        const result = await queryService.submitQuery(queryData);
+        
+        set({
+          response: result.response,
+          isLoading: false
+        });
+        
+        // Refresh history after new query
+        useHistoryStore.getState().fetchHistory();
+      } catch (error) {
+        set({
+          isLoading: false,
+          error: error instanceof Error ? error.message : 'Failed to get response'
+        });
+      }
+    },
+    
+    clearQuery: () => set({ query: '' }),
+    clearResponse: () => set({ response: '' }),
+    clearError: () => set({ error: null })
+  })
+);
 
 // Create history store
-export const useHistoryStore = create<HistoryState>((set) => ({
-  history: [],
-  isLoading: false,
-  error: null,
-  
-  fetchHistory: async () => {
-    set({ isLoading: true, error: null });
+export const useHistoryStore = create<HistoryState>()(
+  (set) => ({
+    history: [],
+    isLoading: false,
+    error: null,
     
-    try {
-      const history = await queryService.getHistory();
-      set({
-        history,
-        isLoading: false
-      });
-    } catch (error) {
-      set({
-        isLoading: false,
-        error: error instanceof Error ? error.message : 'Failed to fetch history'
-      });
-    }
-  },
-  
-  deleteHistoryItem: async (id) => {
-    set({ isLoading: true, error: null });
-    
-    try {
-      await queryService.deleteHistoryItem(id);
+    fetchHistory: async () => {
+      set({ isLoading: true, error: null });
       
-      // Remove the deleted item from state
-      set((state) => ({
-        history: state.history.filter(item => item.id !== id),
-        isLoading: false
-      }));
-    } catch (error) {
-      set({
-        isLoading: false,
-        error: error instanceof Error ? error.message : 'Failed to delete history item'
-      });
-    }
-  },
-  
-  clearError: () => set({ error: null })
-})); 
+      try {
+        const history = await queryService.getHistory();
+        set({
+          history,
+          isLoading: false
+        });
+      } catch (error) {
+        set({
+          isLoading: false,
+          error: error instanceof Error ? error.message : 'Failed to fetch history'
+        });
+      }
+    },
+    
+    deleteHistoryItem: async (id: string) => {
+      set({ isLoading: true, error: null });
+      
+      try {
+        await queryService.deleteHistoryItem(id);
+        
+        // Remove the deleted item from state
+        set((state) => ({
+          history: state.history.filter(item => item.id !== id),
+          isLoading: false
+        }));
+      } catch (error) {
+        set({
+          isLoading: false,
+          error: error instanceof Error ? error.message : 'Failed to delete history item'
+        });
+      }
+    },
+    
+    clearError: () => set({ error: null })
+  })
+); 

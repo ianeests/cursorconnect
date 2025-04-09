@@ -26,20 +26,12 @@ const Login = () => {
   const isLoading = useAuthStore((state) => state.isLoading);
   const clearError = useAuthStore((state) => state.clearError);
   const [showPassword, setShowPassword] = useState(false);
-  const [hasSubmitted, setHasSubmitted] = useState(false);
 
   // Clear error only when component mounts, not on every render
   useEffect(() => {
     clearError();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // Reset hasSubmitted when error is cleared
-  useEffect(() => {
-    if (!error) {
-      setHasSubmitted(false);
-    }
-  }, [error]);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -50,7 +42,6 @@ const Login = () => {
   });
 
   const onSubmit = async (values: FormValues) => {
-    setHasSubmitted(true);
     try {
       await login(values.email, values.password);
       // Only navigate if login was successful and there's no error
