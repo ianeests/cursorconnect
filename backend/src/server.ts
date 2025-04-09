@@ -23,7 +23,7 @@ const app: Application = express();
 // Configure CORS to allow requests from frontend
 const corsOptions = {
   origin: process.env.NODE_ENV === 'production' 
-    ? ['https://cursorconnect-client.vercel.app', 'https://cursorconnect.vercel.app']
+    ? ['https://cursorconnect-frontend.vercel.app']
     : 'http://localhost:5173',
   credentials: true,
   optionsSuccessStatus: 200
