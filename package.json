@@ -3,10 +3,13 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "start": "node backend/server.ts",
+    "start": "node backend/dist/server.js",
     "server": "cd backend && npm run dev",
     "client": "cd frontend && npm run dev",
     "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "build": "npm run build:backend && npm run build:frontend",
+    "build:frontend": "cd frontend && npm run build",
+    "build:backend": "cd backend && npm run build",
     "install-deps": "npm install && cd frontend && npm install && cd ../backend && npm install",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

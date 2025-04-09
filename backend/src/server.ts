@@ -20,7 +20,16 @@ import { errorHandler, notFound } from './middleware/errorMiddleware';
 const app: Application = express();
 
 // Middleware
-app.use(cors());
+// Configure CORS to allow requests from frontend
+const corsOptions = {
+  origin: process.env.NODE_ENV === 'production' 
+    ? ['https://cursorconnect-client.vercel.app', 'https://cursorconnect.vercel.app']
+    : 'http://localhost:5173',
+  credentials: true,
+  optionsSuccessStatus: 200
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
