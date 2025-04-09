@@ -1,8 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { authService, queryService } from '../api';
-import { UserProfile, RegisterUserData, LoginUserData } from '../api/authService';
-import { QueryRequest, HistoryItem } from '../api/queryService';
+import { RegisterUserData, LoginUserData } from '../api/authService';
+import { QueryRequest } from '../api/queryService';
 
 // Define types
 interface User {
