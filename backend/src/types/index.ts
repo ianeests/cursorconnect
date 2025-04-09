@@ -19,6 +19,7 @@ export interface QueryMetadata {
   completionTokens?: number;
   processingTime: number;
   isMock?: boolean;
+  startTime?: number;
   [key: string]: string | number | boolean | undefined;
 }
 

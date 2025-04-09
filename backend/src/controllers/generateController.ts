@@ -2,64 +2,106 @@ import { Request, Response, NextFunction } from 'express';
 import generateService from '../services/generateService';
 import { RequestWithUser } from '../types';
 import { ApiError } from '../middleware/errorMiddleware';
+import Query from '../models/Query';
+import catchAsync from '../utils/catchAsync';
 
 // @desc    Generate AI response from OpenAI
 // @route   POST /api/generate
 // @access  Private
-export const generateResponse = async (req: RequestWithUser, res: Response, next: NextFunction): Promise<void> => {
+export const generateResponse = catchAsync(async (req: RequestWithUser, res: Response) => {
+  const { query } = req.body;
+  const userId = req.user?._id;
+
+  const response = await generateService.generateAIResponse(query);
+
+  // Save to database if user is authenticated
+  if (userId) {
+    await Query.create({
+      user: userId,
+      query,
+      response: response.formattedResponse,
+      metadata: response.metadata
+    });
+  }
+
+  return res.status(200).json({
+    success: true,
+    data: response
+  });
+});
+
+// @desc    Stream AI response from OpenAI
+// @route   POST /api/generate/stream
+// @access  Private
+export const streamResponse = catchAsync(async (req: RequestWithUser, res: Response) => {
+  const { query } = req.body;
+  const userId = req.user?._id;
+  
+  // Set headers for SSE
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+
   try {
-    if (!req.user) {
-      res.status(401).json({
-        success: false,
-        error: 'User not authenticated'
-      });
-      return;
+    const stream = await generateService.generateStream(query);
+    
+    let completeResponse = '';
+
+    // Handle stream differently for OpenAI v4
+    for await (const chunk of stream) {
+      try {
+        const content = chunk.choices[0]?.delta?.content || '';
+        if (content) {
+          completeResponse += content;
+          res.write(`data: ${JSON.stringify({ content })}\n\n`);
+        }
+      } catch (error) {
+        console.error('Error processing stream chunk:', error);
+      }
     }
 
-    const { query } = req.body;
-    const result = await generateService.generateAIResponse(query, req.user.id);
+    // After stream is complete
+    if (userId && completeResponse) {
+      // Convert ObjectId to string if needed
+      const userIdStr = userId.toString();
+      await generateService.saveInteraction(userIdStr, query, completeResponse);
+    }
     
-    res.status(200).json({
-      success: true,
-      data: {
-        id: result.id,
-        query: result.query,
-        response: result.response,
-        metadata: result.metadata || {},
-        createdAt: result.createdAt,
-      }
-    });
-  } catch (err: unknown) {
-    next(err);
+    res.write(`data: ${JSON.stringify({ content: '[DONE]' })}\n\n`);
+    res.end();
+  } catch (error: any) {
+    console.error('Error in stream processing:', error);
+    res.write(`data: ${JSON.stringify({ error: error.message || 'An error occurred' })}\n\n`);
+    res.end();
   }
-};
+});
 
 // @desc    Get recent AI interactions for the current user
 // @route   GET /api/generate/recent
 // @access  Private
-export const getRecentInteractions = async (req: RequestWithUser, res: Response, next: NextFunction): Promise<void> => {
-  try {
-    if (!req.user) {
-      res.status(401).json({
-        success: false,
-        error: 'User not authenticated'
-      });
-      return;
-    }
-
-    const queries = await generateService.getRecentInteractions(req.user.id);
-    
-    res.status(200).json({
-      success: true,
-      count: queries.length,
-      data: queries
+export const getRecentInteractions = catchAsync(async (req: RequestWithUser, res: Response) => {
+  const userId = req.user?._id;
+  
+  if (!userId) {
+    return res.status(401).json({
+      success: false,
+      message: 'User not authenticated'
     });
-  } catch (err: unknown) {
-    next(err);
   }
-};
+  
+  const recentQueries = await Query.find({ user: userId })
+    .sort({ createdAt: -1 })
+    .limit(10);
+    
+  return res.status(200).json({
+    success: true,
+    data: recentQueries
+  });
+});
 
 export default {
   generateResponse,
+  streamResponse,
   getRecentInteractions
 }; 

@@ -65,7 +65,7 @@ export const useAuthStore = create<AuthState>()(
       lastLoaded: null,
       
       register: async (username, email, password) => {
-        set({ isLoading: true, error: null });
+        set({ isLoading: true });
         try {
           const userData: RegisterUserData = { username, email, password };
           const response = await authService.register(userData);
@@ -76,7 +76,8 @@ export const useAuthStore = create<AuthState>()(
             token: response.token,
             user: response.user,
             isAuthenticated: true,
-            isLoading: false
+            isLoading: false,
+            error: null
           });
         } catch (error) {
           localStorage.removeItem('token');
@@ -91,7 +92,7 @@ export const useAuthStore = create<AuthState>()(
       },
       
       login: async (email, password) => {
-        set({ isLoading: true, error: null });
+        set({ isLoading: true });
         try {
           const userData: LoginUserData = { email, password };
           const response = await authService.login(userData);
@@ -102,7 +103,8 @@ export const useAuthStore = create<AuthState>()(
             token: response.token,
             user: response.user,
             isAuthenticated: true,
-            isLoading: false
+            isLoading: false,
+            error: null
           });
         } catch (error) {
           localStorage.removeItem('token');
@@ -128,15 +130,18 @@ export const useAuthStore = create<AuthState>()(
       
       loadUser: async () => {
         const state = get();
-        const { token, lastLoaded } = state;
+        // Try both storage locations for token
+        const token = localStorage.getItem('token') || state.token;
         
         // Don't reload if we loaded within the last 10 seconds (cache)
         const now = Date.now();
-        if (lastLoaded && now - lastLoaded < 10000) {
+        if (state.lastLoaded && now - state.lastLoaded < 10000) {
+          console.log('Using cached user data, loaded recently');
           return;
         }
         
         if (!token) {
+          console.log('No token found, user not authenticated');
           set({ isAuthenticated: false, user: null });
           return;
         }
@@ -147,15 +152,21 @@ export const useAuthStore = create<AuthState>()(
         }
         
         try {
+          console.log('Fetching current user profile...');
           const user = await authService.getCurrentUser();
           
+          // Update token in store if it was only in localStorage
           set({
+            token: token, // Ensure token is in store
             user,
             isAuthenticated: true,
             isLoading: false,
             lastLoaded: now
           });
+          console.log('User profile loaded successfully:', user.username);
         } catch (error) {
+          console.error('Failed to load user profile:', error);
+          // Clear token from both store and localStorage
           localStorage.removeItem('token');
           set({
             token: null,

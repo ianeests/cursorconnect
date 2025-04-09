@@ -17,6 +17,13 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 // Guest route component (redirect if already logged in)
 const GuestRoute = ({ children }: { children: React.ReactNode }) => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const isLoading = useAuthStore((state) => state.isLoading);
+  
+  // Don't redirect if still loading auth status or processing login
+  if (isLoading) {
+    return <>{children}</>;
+  }
+  
   return !isAuthenticated ? <>{children}</> : <Navigate to="/" />;
 };
 

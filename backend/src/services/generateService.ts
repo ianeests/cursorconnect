@@ -2,7 +2,14 @@ import axios, { AxiosResponse } from 'axios';
 import Query from '../models/Query';
 import ErrorResponse from '../utils/errorResponse';
 import config from '../config/config';
-import { AIResponse, QueryDocument } from '../types';
+import { AIResponse, QueryDocument, QueryMetadata } from '../types';
+import OpenAI from 'openai';
+import { randomUUID } from 'crypto';
+
+// Initialize OpenAI client
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 interface OpenAIResponse {
   id: string;
@@ -26,38 +33,184 @@ interface OpenAIResponse {
 }
 
 /**
- * Generate AI response from OpenAI
+ * Generate AI response from prompt
+ * @param query User query
+ * @returns Generated response and metadata
+ */
+export const generateAIResponse = async (query: string) => {
+  try {
+    const startTime = Date.now();
+    
+    const model = process.env.OPENAI_MODEL || 'gpt-3.5-turbo';
+    
+    const completion = await openai.chat.completions.create({
+      model,
+      messages: [
+        { role: 'system', content: 'You are a helpful assistant.' },
+        { role: 'user', content: query }
+      ],
+      temperature: 0.7,
+      max_tokens: 1000,
+    });
+
+    const response = completion.choices[0].message.content || '';
+    const endTime = Date.now();
+    const processingTime = endTime - startTime;
+
+    return {
+      id: randomUUID(),
+      formattedResponse: response,
+      metadata: {
+        model,
+        tokens: {
+          prompt: completion.usage?.prompt_tokens || 0,
+          completion: completion.usage?.completion_tokens || 0,
+          total: completion.usage?.total_tokens || 0
+        },
+        processingTime
+      }
+    };
+  } catch (error: any) {
+    console.error('Error generating AI response:', error);
+    if (error.response) {
+      console.error('OpenAI API error details:', error.response.data);
+    }
+    throw new Error(error.message || 'Failed to generate AI response');
+  }
+};
+
+/**
+ * Generate streaming AI response
+ * @param query User query
+ * @returns Stream instance for consumption with for-await-of
+ */
+export const generateStream = async (query: string) => {
+  try {
+    const model = process.env.OPENAI_MODEL || 'gpt-3.5-turbo';
+    
+    return await openai.chat.completions.create({
+      model,
+      messages: [
+        { role: 'system', content: 'You are a helpful assistant.' },
+        { role: 'user', content: query }
+      ],
+      temperature: 0.7,
+      max_tokens: 1000,
+      stream: true,
+    });
+  } catch (error: any) {
+    console.error('Error generating AI stream:', error);
+    if (error.response) {
+      console.error('OpenAI API error details:', error.response.data);
+    }
+    throw new Error(error.message || 'Failed to generate AI stream');
+  }
+};
+
+/**
+ * Stream AI response from OpenAI
  * @param {string} queryText - The user's query text
  * @param {string} userId - User ID
- * @returns {Promise<object>} Formatted query with response
+ * @param {Function} onChunk - Callback for each chunk
+ * @returns {Promise<void>}
  */
-export const generateAIResponse = async (queryText: string, userId: string): Promise<{
-  id: string;
-  query: string;
-  response: string;
-  metadata: Record<string, any>;
-  createdAt: Date;
-}> => {
-  // Call OpenAI API to get response
-  const aiResponse = await callOpenAI(queryText);
-
-  // Save raw query and response to database
-  const savedQuery = await Query.create({
-    user: userId,
-    query: queryText,
-    response: aiResponse.rawResponse,
-    metadata: aiResponse.metadata
-  });
-
-  // Return formatted response
-  return {
-    id: savedQuery._id.toString(),
-    query: savedQuery.query,
-    response: aiResponse.formattedResponse,
-    metadata: aiResponse.metadata,
-    createdAt: savedQuery.createdAt,
+export const streamAIResponse = async (
+  queryText: string, 
+  userId: string, 
+  onChunk: (chunk: string) => void
+): Promise<void> => {
+  let fullResponse = '';
+  let metadata: QueryMetadata = {
+    model: config.OPENAI_MODEL,
+    tokens: 0,
+    processingTime: 0,
+    startTime: Date.now(),
   };
+
+  try {
+    if (!config.OPENAI_API_KEY) {
+      // Use mock for development
+      await mockStreamResponse(queryText, onChunk);
+      return;
+    }
+
+    // Start the timer
+    const startTime = Date.now();
+
+    // For a real implementation, we would use OpenAI's streaming API
+    // This is a simplified implementation using our existing method
+    await simulateStreamingResponse(queryText, onChunk);
+
+    // Calculate processing time
+    const endTime = Date.now();
+    metadata.processingTime = (endTime - startTime) / 1000;
+
+    // Save to database after complete response
+    await Query.create({
+      user: userId,
+      query: queryText,
+      response: fullResponse,
+      metadata
+    });
+  } catch (error) {
+    console.error('Error streaming response:', error);
+    throw error;
+  }
+
+  // Helper function to simulate streaming with our existing API
+  async function simulateStreamingResponse(query: string, callback: (chunk: string) => void): Promise<void> {
+    try {
+      const response = await callOpenAI(query);
+      fullResponse = response.rawResponse;
+      metadata = response.metadata;
+      
+      // Split the response into chunks and stream them
+      const text = response.formattedResponse;
+      const chunks = simulateChunkedText(text);
+      
+      for (const chunk of chunks) {
+        callback(chunk);
+        // Add a small delay between chunks to simulate streaming
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+    } catch (error) {
+      console.error('Error in simulateStreamingResponse:', error);
+      throw error;
+    }
+  }
 };
+
+/**
+ * Helper function to break text into chunks for simulated streaming
+ */
+function simulateChunkedText(text: string): string[] {
+  // Break the text roughly into sentences or chunks of ~10 chars
+  const chunks: string[] = [];
+  let currentChunk = '';
+  
+  for (let i = 0; i < text.length; i++) {
+    currentChunk += text[i];
+    
+    // Break on sentence boundaries or every ~10 chars
+    if (
+      text[i] === '.' || 
+      text[i] === '?' || 
+      text[i] === '!' || 
+      text[i] === '\n' ||
+      currentChunk.length >= 10
+    ) {
+      chunks.push(currentChunk);
+      currentChunk = '';
+    }
+  }
+  
+  // Add any remaining text
+  if (currentChunk.length > 0) {
+    chunks.push(currentChunk);
+  }
+  
+  return chunks;
+}
 
 /**
  * Get recent interactions for a user
@@ -69,7 +222,7 @@ export const getRecentInteractions = async (userId: string, limit: number = 5): 
   id: string;
   query: string;
   response: string;
-  metadata: Record<string, any>;
+  metadata: QueryMetadata;
   createdAt: Date;
 }>> => {
   const queries = await Query.find({ user: userId })
@@ -105,9 +258,9 @@ async function callOpenAI(query: string): Promise<AIResponse> {
         model: config.OPENAI_MODEL,
         messages: [
           {
-            role: 'system',
-            content: 'You are a helpful assistant.'
-          },
+            "role": "system",
+            "content": "You are a senior software engineer and helpful AI assistant. You answer all coding-related questions using clean, efficient, and well-documented code. Always format code inside proper Markdown code blocks (e.g., triple backticks with the language specified). Use comments in code where helpful. When necessary, explain the code briefly but clearly, and offer best practices or alternative approaches if relevant. Keep answers concise and well-structured for readability. For non-coding questions, respond normally with helpful and accurate information."
+          },          
           {
             role: 'user',
             content: query
@@ -280,7 +433,55 @@ function getMockResponse(query: string): Promise<AIResponse> {
   });
 }
 
+/**
+ * Simulate a streaming response for mock implementation
+ * @param {string} query - User query 
+ * @param {Function} onChunk - Callback for each chunk
+ * @returns {Promise<void>}
+ */
+async function mockStreamResponse(query: string, onChunk: (chunk: string) => void): Promise<void> {
+  const mockResponse = `This is a mock streaming response for: "${query}"\n\nOpenAI would provide a real streaming response here. Please set up your API key in the .env file to get actual responses.`;
+  
+  // Split into chunks
+  const chunks = simulateChunkedText(mockResponse);
+  
+  // Send each chunk with a delay
+  for (const chunk of chunks) {
+    onChunk(chunk);
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+}
+
+/**
+ * Save user query and AI response to database
+ * @param {string} userId - User ID
+ * @param {string} query - User's query text
+ * @param {string} response - AI generated response
+ * @returns {Promise<QueryDocument>} Saved query document
+ */
+export const saveInteraction = async (userId: string, query: string, response: string): Promise<QueryDocument> => {
+  const model = process.env.OPENAI_MODEL || 'gpt-3.5-turbo';
+  
+  // Create a rough estimate of tokens based on whitespace-delimited words
+  // This is just an approximation since we don't have token info from streaming
+  const estimatedTokens = response.split(/\s+/).length * 1.3;
+  
+  return await Query.create({
+    user: userId,
+    query,
+    response,
+    metadata: {
+      model,
+      tokens: Math.round(estimatedTokens),
+      processingTime: 0, // We don't have accurate processing time from streaming
+    }
+  });
+};
+
 export default {
   generateAIResponse,
-  getRecentInteractions
+  streamAIResponse,
+  getRecentInteractions,
+  generateStream,
+  saveInteraction
 }; 

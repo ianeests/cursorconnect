@@ -15,14 +15,15 @@ const api = axios.create({
 // Request interceptor for adding auth token
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    const token = useAuthStore.getState().token;
+    const token = localStorage.getItem('token') || useAuthStore.getState().token;
+    
     if (token) {
       // Add token to Authorization header with Bearer prefix
       config.headers['Authorization'] = `Bearer ${token}`;
-      
-      // Keep x-auth-token for backward compatibility if needed
-      config.headers['x-auth-token'] = token;
+    } else {
+      console.warn('No auth token available for request to:', config.url);
     }
+    
     return config;
   },
   (error: AxiosError) => Promise.reject(error)
@@ -32,10 +33,22 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
+    // Log detailed error information for debugging
+    console.error('API Error:', {
+      status: error.response?.status,
+      url: error.config?.url,
+      method: error.config?.method,
+      message: error.message,
+      responseData: error.response?.data
+    });
+    
     // Handle session expiration
     if (error.response?.status === 401) {
+      console.log('Authentication error detected, logging out user');
       // Log the user out if token is expired/invalid
       useAuthStore.getState().logout();
+      // Redirect to login if needed
+      window.location.href = '/login';
     }
     return Promise.reject(error);
   }
