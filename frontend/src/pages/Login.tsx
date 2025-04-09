@@ -45,12 +45,15 @@ const Login = () => {
     try {
       await login(values.email, values.password);
       // Only navigate if login was successful and there's no error
-      if (!useAuthStore.getState().error) {
+      const currentError = useAuthStore.getState().error;
+      if (!currentError) {
         navigate('/');
       }
+      // Do not automatically navigate if there's an error
     } catch (err) {
       // Error is handled in the store
       console.error('Login error:', err);
+      // Don't navigate when there's an error
     }
   };
 
@@ -83,7 +86,7 @@ const Login = () => {
               <ErrorAlert 
                 message={error} 
                 onClose={handleErrorDismiss} 
-                duration={8000} // Extend to 8 seconds
+                duration={10000} // Extend to 10 seconds
               />
 
               <FormField

@@ -56,7 +56,7 @@ const ErrorAlert: React.FC<ErrorAlertProps> = ({
   
   return (
     <div 
-      className={`bg-destructive/15 border border-destructive text-destructive px-4 py-3 rounded relative mb-4 transition-all duration-300 ${
+      className={`bg-destructive/15 border border-destructive text-destructive px-4 py-3 rounded relative mb-4 transition-all duration-300 shadow-md ${
         isVisible ? 'opacity-100' : 'opacity-0'
       }`} 
       role="alert"
@@ -66,13 +66,13 @@ const ErrorAlert: React.FC<ErrorAlertProps> = ({
           <AlertCircle className="h-5 w-5" />
         </div>
         <div className="ml-3 flex-grow">
-          <p className="text-sm">{message}</p>
+          <p className="text-sm font-medium">{message}</p>
         </div>
         {onClose && (
           <button
             type="button"
             className={`ml-auto -mx-1.5 -my-1.5 bg-destructive/15 text-destructive rounded-lg focus:ring-2 focus:ring-destructive p-1.5 inline-flex items-center justify-center h-8 w-8 transition-opacity duration-300 ${
-              isDismissable ? 'opacity-100' : 'opacity-50 cursor-not-allowed'
+              isDismissable ? 'opacity-100 hover:bg-destructive/20' : 'opacity-50 cursor-not-allowed'
             }`}
             onClick={handleClose}
             disabled={!isDismissable}
@@ -86,9 +86,15 @@ const ErrorAlert: React.FC<ErrorAlertProps> = ({
         )}
       </div>
       {!isDismissable && (
-        <div className="absolute bottom-0 left-0 h-1 bg-destructive/30 transition-all duration-300" 
+        <div className="absolute bottom-0 left-0 h-1 bg-destructive/50 transition-all duration-300" 
           style={{ width: '100%', animation: `shrink ${duration / 1000}s linear forwards` }}></div>
       )}
+      <style>{`
+        @keyframes shrink {
+          from { width: 100%; }
+          to { width: 0%; }
+        }
+      `}</style>
     </div>
   );
 };

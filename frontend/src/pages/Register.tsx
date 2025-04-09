@@ -52,10 +52,16 @@ const Register = () => {
   const onSubmit = async (values: FormValues) => {
     try {
       await register(values.username, values.email, values.password);
-      navigate('/');
+      // Only navigate if registration was successful and there's no error
+      const currentError = useAuthStore.getState().error;
+      if (!currentError) {
+        navigate('/');
+      }
+      // Do not automatically navigate if there's an error
     } catch (err) {
       // Error is handled in the store
       console.error('Registration error:', err);
+      // Don't navigate when there's an error
     }
   };
 
@@ -87,7 +93,7 @@ const Register = () => {
               <ErrorAlert 
                 message={error} 
                 onClose={clearError} 
-                duration={8000}
+                duration={10000}
               />
 
               <FormField
