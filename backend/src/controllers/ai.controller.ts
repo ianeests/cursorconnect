@@ -1,11 +1,44 @@
 import { Request, Response } from 'express';
-import QueryModel from '../models/query.model';
-import { generateResponse } from '../services/openai';
-import { catchAsync } from '../utils/catchAsync';
-import { RequestWithUser } from '../types';
+import { EventEmitter } from 'events';
+import { AIResponse, RequestWithUser, QueryDocument } from '../types';
+import { generateResponse } from '../services/gemini';
+import config from '../config/config';
+
+// Interface for the QueryModel
+interface QueryModel {
+  create(data: {
+    user: any;
+    query: string;
+    response: string;
+    metadata: any;
+  }): Promise<QueryDocument>;
+}
+
+// Check if we have the correct model import name
+let QueryModel: QueryModel | null = null;
+try {
+  QueryModel = require('../models/Query') as QueryModel;
+} catch (e) {
+  try {
+    QueryModel = require('../models/query.model') as QueryModel;
+  } catch (e) {
+    console.error('Could not find Query model. Please check the correct import path.');
+  }
+}
+
+// Helper function to catch async errors
+const catchAsync = (fn: Function) => (req: Request, res: Response) => {
+  Promise.resolve(fn(req, res)).catch((err) => {
+    console.error('Controller error:', err);
+    res.status(500).json({
+      success: false,
+      message: err.message || 'An error occurred',
+    });
+  });
+};
 
 /**
- * Generate an AI response
+ * Generate an AI response using Gemini
  * @route POST /api/v1/ai/generate
  */
 export const generateAIResponse = catchAsync(async (req: RequestWithUser, res: Response) => {
@@ -18,10 +51,10 @@ export const generateAIResponse = catchAsync(async (req: RequestWithUser, res: R
     });
   }
 
-  const response = await generateResponse(query);
+  const response = await generateResponse(query) as AIResponse;
 
   // Save the query and response to the database if user is authenticated
-  if (req.user) {
+  if (req.user && QueryModel) {
     await QueryModel.create({
       user: req.user._id,
       query,
@@ -58,7 +91,7 @@ export const streamAIResponse = catchAsync(async (req: RequestWithUser, res: Res
   
   try {
     const startTime = Date.now();
-    const stream = await generateResponse(query, true);
+    const stream = await generateResponse(query, true) as EventEmitter;
     
     let fullResponse = '';
 
@@ -94,15 +127,15 @@ export const streamAIResponse = catchAsync(async (req: RequestWithUser, res: Res
       const endTime = Date.now();
       const processingTime = endTime - startTime;
       
-      if (req.user && fullResponse) {
-        const model = process.env.OPENAI_MODEL || 'gpt-3.5-turbo';
+      if (req.user && fullResponse && QueryModel) {
+        const model = config.GEMINI_MODEL;
         await QueryModel.create({
           user: req.user._id,
           query,
           response: fullResponse,
           metadata: {
             model,
-            tokens: fullResponse.split(' ').length * 1.3, // Rough estimate
+            tokens: Math.ceil(fullResponse.length / 4), // Rough estimation for Gemini
             processingTime
           },
         });
@@ -112,7 +145,7 @@ export const streamAIResponse = catchAsync(async (req: RequestWithUser, res: Res
       res.end();
     });
 
-    stream.on('error', (error) => {
+    stream.on('error', (error: Error) => {
       console.error('Stream error:', error);
       res.write(`data: ${JSON.stringify({ error: 'An error occurred' })}\n\n`);
       res.end();

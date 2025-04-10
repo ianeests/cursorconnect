@@ -52,4 +52,7 @@ export interface Config {
   OPENAI_API_KEY?: string;
   OPENAI_API_ENDPOINT: string;
   OPENAI_MODEL: string;
+  GEMINI_API_KEY?: string;
+  GEMINI_API_ENDPOINT: string;
+  GEMINI_MODEL: string;
 } 

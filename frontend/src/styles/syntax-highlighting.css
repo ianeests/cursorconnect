@@ -1,0 +1,196 @@
+/**
+* Syntax highlighting styles for code blocks
+* These styles work with rehype-highlight
+*/
+
+/* Additional container styles */
+.code-blocks-container {
+  /* Ensure scroll behavior is smooth */
+  scroll-behavior: smooth;
+}
+
+.markdown-content {
+  /* Space between elements */
+  & > * + * {
+    margin-top: 1rem;
+  }
+
+  /* Ensure code blocks don't overflow */
+  & pre {
+    position: relative;
+    margin: 1rem 0;
+    border-radius: 0.5rem;
+    background-color: var(--hljs-background) !important;
+  }
+
+  /* Ensure code block text wraps if needed */
+  & pre code {
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  /* Give code blocks a nice border */
+  & pre {
+    border: 1px solid rgba(0, 0, 0, 0.1);
+  }
+
+  .dark & pre {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+}
+
+/* Base code styles */
+pre code.hljs {
+  display: block;
+  overflow-x: auto;
+  padding: 1em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+/* Light theme syntax colors */
+:root {
+  --hljs-background: rgba(242, 242, 247, 0.7);
+  --hljs-foreground: #2e3440;
+  --hljs-comment: #717790;  
+  --hljs-keyword: #6f42c1;
+  --hljs-function: #6f42c1;
+  --hljs-string: #0a3;
+  --hljs-number: #0b76b8;
+  --hljs-title: #0550ae;
+  --hljs-attribute: #cf222e;
+  --hljs-symbol: #e36209;
+  --hljs-builtin: #6f42c1;
+  --hljs-variable: #24292f;
+  --hljs-type: #0550ae;
+}
+
+/* Dark theme syntax colors */
+.dark {
+  --hljs-background: rgba(34, 39, 46, 0.7);
+  --hljs-foreground: #eceff4;
+  --hljs-comment: #768390;
+  --hljs-keyword: #d2a8ff;
+  --hljs-function: #d2a8ff;
+  --hljs-string: #a5d6a7;
+  --hljs-number: #79c0ff;
+  --hljs-title: #79c0ff;
+  --hljs-attribute: #ff7b72;
+  --hljs-symbol: #f69d50;
+  --hljs-builtin: #d2a8ff;
+  --hljs-variable: #eceff4;
+  --hljs-type: #79c0ff;
+}
+
+/* Syntax highlighting */
+.hljs {
+  color: var(--hljs-foreground);
+  background: var(--hljs-background);
+}
+
+.hljs-comment,
+.hljs-quote {
+  color: var(--hljs-comment);
+  font-style: italic;
+}
+
+.hljs-keyword,
+.hljs-selector-tag {
+  color: var(--hljs-keyword);
+  font-weight: bold;
+}
+
+.hljs-string,
+.hljs-doctag,
+.hljs-regexp {
+  color: var(--hljs-string);
+}
+
+.hljs-title,
+.hljs-section,
+.hljs-name {
+  color: var(--hljs-title);
+}
+
+.hljs-number {
+  color: var(--hljs-number);
+}
+
+.hljs-builtin,
+.hljs-literal {
+  color: var(--hljs-builtin);
+}
+
+.hljs-type,
+.hljs-params {
+  color: var(--hljs-type);
+}
+
+.hljs-attribute,
+.hljs-tag,
+.hljs-subst,
+.hljs-selector-id,
+.hljs-selector-class {
+  color: var(--hljs-attribute);
+}
+
+.hljs-formula {
+  background-color: rgba(0, 0, 0, 0.05);
+  font-style: italic;
+}
+
+.hljs-addition {
+  background-color: rgba(0, 255, 0, 0.05);
+}
+
+.hljs-deletion {
+  background-color: rgba(255, 0, 0, 0.05);
+}
+
+.hljs-selector-attr,
+.hljs-selector-pseudo,
+.hljs-link {
+  color: var(--hljs-symbol);
+  text-decoration: underline;
+}
+
+.hljs-emphasis {
+  font-style: italic;
+}
+
+.hljs-strong {
+  font-weight: bold;
+}
+
+/* Line numbers - uncomment if needed
+.hljs-ln-numbers {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  text-align: center;
+  color: var(--hljs-comment);
+  border-right: 1px solid rgba(128, 128, 128, 0.2);
+  vertical-align: top;
+  padding-right: 8px !important;
+}
+*/
+
+/* Language badge */
+pre::before {
+  content: attr(data-language);
+  position: absolute;
+  top: 0;
+  right: 0;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--muted-foreground);
+  background: var(--accent);
+  padding: 0.2rem 0.5rem;
+  border-radius: 0 0 0 0.25rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+} 

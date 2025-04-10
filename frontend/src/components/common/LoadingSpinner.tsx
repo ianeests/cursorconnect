@@ -1,16 +1,20 @@
 import React from 'react';
 
 interface LoadingSpinnerProps {
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'xs' | 'sm' | 'md' | 'lg';
   fullPage?: boolean;
+  className?: string;
 }
 
 const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ 
   size = 'md', 
-  fullPage = false 
+  fullPage = false,
+  className = ''
 }) => {
   const getSizeClass = () => {
     switch (size) {
+      case 'xs':
+        return 'h-3 w-3';
       case 'sm':
         return 'h-4 w-4';
       case 'lg':
@@ -23,7 +27,7 @@ const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
 
   const spinner = (
     <div 
-      className={`animate-spin rounded-full border-2 border-primary border-t-transparent ${getSizeClass()}`}
+      className={`animate-spin rounded-full border-2 border-primary border-t-transparent ${getSizeClass()} ${className}`}
       style={{ aspectRatio: '1/1' }}
     />
   );

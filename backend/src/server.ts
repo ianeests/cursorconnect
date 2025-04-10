@@ -24,14 +24,31 @@ const app: Application = express();
 const corsOptions = {
   origin: process.env.NODE_ENV === 'production' 
     ? ['https://cursorconnect-frontend.vercel.app']
-    : 'http://localhost:5173',
+    : ['http://localhost:5173', 'http://127.0.0.1:5173'],
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
   optionsSuccessStatus: 200
 };
 
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Add response headers to help with CORS and caching
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', process.env.NODE_ENV === 'production'
+    ? 'https://cursorconnect-frontend.vercel.app'
+    : 'http://localhost:5173');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  
+  // Log the request
+  console.log(`${new Date().toISOString()} ${req.method} ${req.originalUrl}`);
+  
+  next();
+});
 
 // Health check route
 app.get('/api/health', (_req: Request, res: Response) => {

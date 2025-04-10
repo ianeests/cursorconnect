@@ -42,8 +42,11 @@ api.interceptors.response.use(
       responseData: error.response?.data
     });
     
-    // Handle session expiration
-    if (error.response?.status === 401) {
+    // Handle session expiration - but don't redirect for auth endpoints
+    const url = error.config?.url || '';
+    const isAuthEndpoint = url.includes('/api/auth/login') || url.includes('/api/auth/register');
+    
+    if (error.response?.status === 401 && !isAuthEndpoint) {
       console.log('Authentication error detected, logging out user');
       // Log the user out if token is expired/invalid
       useAuthStore.getState().logout();

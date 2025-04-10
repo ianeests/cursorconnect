@@ -38,6 +38,9 @@ const ErrorAlert: React.FC<ErrorAlertProps> = ({
           clearTimeout(timerRef.current);
         }
       };
+    } else {
+      // If message is null, ensure visibility is set to false
+      setIsVisible(false);
     }
   }, [message, duration]);
 

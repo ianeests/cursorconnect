@@ -9,7 +9,7 @@ const Layout = () => {
       <main className="container mx-auto py-6 px-4 sm:px-6">
         <Outlet />
       </main>
-      <Toaster position="top-right" closeButton richColors duration={3000} />
+      <Toaster position="top-right" richColors duration={3000} />
     </div>
   );
 };

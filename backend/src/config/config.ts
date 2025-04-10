@@ -17,10 +17,15 @@ const config: Config = {
   JWT_SECRET: process.env.JWT_SECRET || 'your_default_jwt_secret_key_for_dev',
   JWT_EXPIRE: process.env.JWT_EXPIRE || '30d',
   
-  // OpenAI API config
+  // OpenAI API config (legacy)
   OPENAI_API_KEY: process.env.OPENAI_API_KEY,
   OPENAI_API_ENDPOINT: process.env.OPENAI_API_ENDPOINT || 'https://api.openai.com/v1/chat/completions',
-  OPENAI_MODEL: process.env.OPENAI_MODEL || 'gpt-3.5-turbo'
+  OPENAI_MODEL: process.env.OPENAI_MODEL || 'gpt-3.5-turbo',
+  
+  // Gemini API config
+  GEMINI_API_KEY: process.env.GEMINI_API_KEY,
+  GEMINI_API_ENDPOINT: process.env.GEMINI_API_ENDPOINT || 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent',
+  GEMINI_MODEL: process.env.GEMINI_MODEL || 'gemini-2.0-flash'
 };
 
 export default config; 

@@ -2,19 +2,29 @@ import { useEffect, useCallback, useState } from 'react';
 import { useHistoryStore, useAuthStore } from '@/lib/store';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { AlertCircle, Loader2, Trash2, Clock, Search, History as HistoryIcon, RefreshCw } from 'lucide-react';
-import { format } from 'date-fns';
-import { cn } from '@/lib/utils';
+import { AlertCircle, Loader2, Clock, History as HistoryIcon, RefreshCw } from 'lucide-react';
+import { toast } from "sonner";
+import { DeleteConfirmationDialog, HistoryItemDetails, HistoryTable } from '@/components/history';
+import { Pagination } from '@/components/common';
+
+interface HistoryItem {
+  id: string;
+  query: string;
+  response: string;
+  createdAt: string;
+}
 
 const History = () => {
   // Use individual selectors instead of object selector to prevent re-renders
   const history = useHistoryStore((state) => state.history);
   const isLoading = useHistoryStore((state) => state.isLoading);
   const error = useHistoryStore((state) => state.error);
+  const pagination = useHistoryStore((state) => state.pagination);
   const fetchHistory = useHistoryStore((state) => state.fetchHistory);
   const deleteHistoryItem = useHistoryStore((state) => state.deleteHistoryItem);
+  const setPage = useHistoryStore((state) => state.setPage);
+  const setLimit = useHistoryStore((state) => state.setLimit);
   
   // Get authentication state
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -23,6 +33,11 @@ const History = () => {
   
   // Local loading state for retry operations
   const [isRetrying, setIsRetrying] = useState(false);
+  
+  // State for dialogs
+  const [selectedItem, setSelectedItem] = useState<HistoryItem | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
 
   // Memoize the fetchHistory call to prevent unnecessary re-renders
   const loadHistory = useCallback(async () => {
@@ -41,11 +56,6 @@ const History = () => {
   useEffect(() => {
     loadHistory();
   }, [loadHistory]);
-
-  // Format date function
-  const formatDate = (dateString: string) => {
-    return format(new Date(dateString), 'PP p');
-  };
   
   // Retry loading history with fresh authentication
   const handleRetry = async () => {
@@ -58,6 +68,32 @@ const History = () => {
     } finally {
       setIsRetrying(false);
     }
+  };
+
+  // Handle item detail view
+  const showItemDetails = (item: HistoryItem) => {
+    setSelectedItem(item);
+  };
+
+  // Handle item deletion with confirmation
+  const handleDeleteItem = async (id: string) => {
+    try {
+      await deleteHistoryItem(id);
+      setIsDeleteDialogOpen(false);
+      toast.success("Item deleted successfully");
+    } catch (error) {
+      toast.error("Failed to delete item");
+      console.error("Delete error:", error);
+    }
+  };
+
+  // Pagination handlers
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
+  };
+
+  const handleLimitChange = (value: string) => {
+    setLimit(parseInt(value));
   };
 
   return (
@@ -111,67 +147,58 @@ const History = () => {
                 </Button>
               </div>
             </div>
-          ) : history.length === 0 ? (
-            <div className="text-center py-10 px-4">
-              <Search className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
-              <p className="text-sm text-muted-foreground font-medium">No queries found</p>
-              <p className="text-xs text-muted-foreground/80 mt-1 leading-relaxed">Start by asking a question on the home page</p>
-            </div>
           ) : (
-            <div className="rounded-md border border-border/40 overflow-hidden transition-all duration-300 hover:border-border/60">
-              <Table>
-                <TableHeader className="bg-accent/30">
-                  <TableRow>
-                    <TableHead className="text-xs font-semibold text-foreground/70">Query</TableHead>
-                    <TableHead className="text-xs font-semibold text-foreground/70">Response</TableHead>
-                    <TableHead className="text-xs font-semibold text-foreground/70">Date</TableHead>
-                    <TableHead className="w-[60px] text-xs font-semibold text-foreground/70">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {history.map((item) => (
-                    <TableRow 
-                      key={item.id} 
-                      className="group hover:bg-accent/20 transition-colors text-sm"
-                    >
-                      <TableCell className="font-medium max-w-[160px] truncate text-xs">
-                        <span className="group-hover:text-primary transition-colors duration-300">
-                          {item.query}
-                        </span>
-                      </TableCell>
-                      <TableCell className="max-w-[280px] truncate text-xs">
-                        {item.response}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-xs">
-                        {formatDate(item.createdAt)}
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => deleteHistoryItem(item.id)}
-                          title="Delete"
-                          className={cn(
-                            "h-7 w-7 p-0 rounded-full",
-                            "opacity-70 group-hover:opacity-100",
-                            "hover:bg-destructive/10 hover:text-destructive", 
-                            "transition-all duration-300"
-                          )}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                          <span className="sr-only">Delete</span>
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+            <>
+              <HistoryTable 
+                history={history}
+                onDeleteClick={(item) => {
+                  showItemDetails(item);
+                  setIsDeleteDialogOpen(true);
+                }}
+                onItemClick={(item) => {
+                  showItemDetails(item);
+                  setIsDetailsDialogOpen(true);
+                }}
+              />
+              
+              {/* Pagination */}
+              {pagination.pages > 0 && (
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.pages}
+                  limit={pagination.limit}
+                  onPageChange={handlePageChange}
+                  onLimitChange={handleLimitChange}
+                />
+              )}
+            </>
           )}
         </CardContent>
       </Card>
+
+      {/* Dialogs */}
+      {selectedItem && (
+        <>
+          <DeleteConfirmationDialog
+            isOpen={isDeleteDialogOpen}
+            onOpenChange={setIsDeleteDialogOpen}
+            onDelete={handleDeleteItem}
+            item={selectedItem}
+          />
+          
+          <HistoryItemDetails
+            isOpen={isDetailsDialogOpen}
+            onOpenChange={setIsDetailsDialogOpen}
+            onDelete={() => {
+              setIsDetailsDialogOpen(false);
+              setIsDeleteDialogOpen(true);
+            }}
+            item={selectedItem}
+          />
+        </>
+      )}
     </div>
   );
 };
 
-export default History; 
+export default History;

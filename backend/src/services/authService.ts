@@ -1,5 +1,5 @@
 import User from '../models/User';
-import { ApiError, createError } from '../middleware/errorMiddleware';
+import { createError } from '../middleware/errorMiddleware';
 import { UserDocument } from '../types';
 
 interface RegisterUserInput {

@@ -44,7 +44,7 @@ const Login = () => {
   const onSubmit = async (values: FormValues) => {
     try {
       await login(values.email, values.password);
-      // Only navigate if login was successful and there's no error
+      // Only navigate if login was successful
       const currentError = useAuthStore.getState().error;
       if (!currentError) {
         navigate('/');
@@ -53,7 +53,7 @@ const Login = () => {
     } catch (err) {
       // Error is handled in the store
       console.error('Login error:', err);
-      // Don't navigate when there's an error
+      // Make sure we don't navigate on error
     }
   };
 

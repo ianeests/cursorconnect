@@ -38,20 +38,34 @@ interface QueryState {
   response: string;
   isLoading: boolean;
   error: string | null;
+  isStreaming: boolean;
+  streamAbortController: (() => void) | null;
   setQuery: (query: string) => void;
   submitQuery: () => Promise<void>;
+  submitStreamQuery: () => void;
   clearQuery: () => void;
   clearResponse: () => void;
   clearError: () => void;
+  abortStream: () => void;
 }
 
 interface HistoryState {
   history: Query[];
   isLoading: boolean;
   error: string | null;
-  fetchHistory: () => Promise<void>;
+  pagination: {
+    page: number;
+    limit: number;
+    pages: number;
+    total: number;
+    hasNextPage: boolean;
+    hasPrevPage: boolean;
+  };
+  fetchHistory: (page?: number, limit?: number) => Promise<void>;
   deleteHistoryItem: (id: string) => Promise<void>;
   clearError: () => void;
+  setPage: (page: number) => void;
+  setLimit: (limit: number) => void;
 }
 
 // Create auth store with persistence
@@ -196,6 +210,8 @@ export const useQueryStore = create<QueryState>()(
     response: '',
     isLoading: false,
     error: null,
+    isStreaming: false,
+    streamAbortController: null,
     
     setQuery: (query: string) => set({ query }),
     
@@ -211,19 +227,97 @@ export const useQueryStore = create<QueryState>()(
       
       try {
         const queryData: QueryRequest = { query };
+        console.log('Submitting query:', queryData);
         const result = await queryService.submitQuery(queryData);
+        
+        // Get the response correctly from the result
+        console.log('API Response:', result);
+        console.log('Response type:', typeof result);
+        console.log('Response properties:', Object.keys(result));
         
         set({
           response: result.response,
           isLoading: false
         });
         
+        // Verify the state update
+        setTimeout(() => {
+          console.log('Updated state:', get());
+        }, 100);
+        
         // Refresh history after new query
         useHistoryStore.getState().fetchHistory();
       } catch (error) {
+        console.error('Query error:', error);
         set({
           isLoading: false,
           error: error instanceof Error ? error.message : 'Failed to get response'
+        });
+      }
+    },
+    
+    submitStreamQuery: () => {
+      const query = get().query;
+      
+      if (!query.trim()) {
+        set({ error: 'Please enter a query' });
+        return;
+      }
+      
+      set({ 
+        isLoading: true, 
+        isStreaming: true,
+        error: null,
+        response: '' // Clear previous response
+      });
+      
+      try {
+        const queryData: QueryRequest = { query };
+        console.log('Submitting streaming query:', queryData);
+        
+        // Start streaming and get abort controller
+        const abortController = queryService.submitStreamQuery(
+          queryData, 
+          (chunk: string, done: boolean) => {
+            // Update response with each chunk
+            set({ response: chunk });
+            
+            // When stream is done
+            if (done) {
+              set({ 
+                isLoading: false,
+                isStreaming: false,
+                streamAbortController: null
+              });
+              
+              // Refresh history after streaming is complete
+              useHistoryStore.getState().fetchHistory();
+            }
+          }
+        );
+        
+        // Store abort controller for cancellation
+        set({ streamAbortController: abortController });
+        
+      } catch (error) {
+        console.error('Streaming query error:', error);
+        set({
+          isLoading: false,
+          isStreaming: false,
+          streamAbortController: null,
+          error: error instanceof Error ? error.message : 'Failed to get streaming response'
+        });
+      }
+    },
+    
+    abortStream: () => {
+      const { streamAbortController } = get();
+      if (streamAbortController) {
+        streamAbortController();
+        set({ 
+          isLoading: false,
+          isStreaming: false,
+          streamAbortController: null
         });
       }
     },
@@ -236,18 +330,40 @@ export const useQueryStore = create<QueryState>()(
 
 // Create history store
 export const useHistoryStore = create<HistoryState>()(
-  (set) => ({
+  (set, get) => ({
     history: [],
     isLoading: false,
     error: null,
+    pagination: {
+      page: 1,
+      limit: 10,
+      pages: 1,
+      total: 0,
+      hasNextPage: false,
+      hasPrevPage: false
+    },
     
-    fetchHistory: async () => {
+    fetchHistory: async (page?: number, limit?: number) => {
       set({ isLoading: true, error: null });
       
+      // Use provided page/limit or get from state
+      const currentPage = page || get().pagination.page;
+      const currentLimit = limit || get().pagination.limit;
+      
       try {
-        const history = await queryService.getHistory();
+        const result = await queryService.getHistory(currentPage, currentLimit);
+        
+        // Map HistoryItem to Query (convert _id to id)
+        const history = result.items.map(item => ({
+          id: item._id,
+          query: item.query,
+          response: item.response,
+          createdAt: item.createdAt
+        }));
+        
         set({
           history,
+          pagination: result.pagination,
           isLoading: false
         });
       } catch (error) {
@@ -269,12 +385,41 @@ export const useHistoryStore = create<HistoryState>()(
           history: state.history.filter(item => item.id !== id),
           isLoading: false
         }));
+        
+        // Refetch current page if it's empty (except for page 1)
+        const state = get();
+        if (state.history.length === 0 && state.pagination.page > 1) {
+          await get().fetchHistory(state.pagination.page - 1);
+        } else if (state.pagination.page === 1) {
+          // Just refetch current page to update counts
+          await get().fetchHistory(1);
+        }
       } catch (error) {
         set({
           isLoading: false,
           error: error instanceof Error ? error.message : 'Failed to delete history item'
         });
       }
+    },
+    
+    setPage: (page: number) => {
+      set((state) => ({
+        pagination: {
+          ...state.pagination,
+          page
+        }
+      }));
+      get().fetchHistory(page);
+    },
+    
+    setLimit: (limit: number) => {
+      set((state) => ({
+        pagination: {
+          ...state.pagination,
+          limit
+        }
+      }));
+      get().fetchHistory(1, limit); // Reset to page 1 when changing limit
     },
     
     clearError: () => set({ error: null })

@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "./styles/syntax-highlighting.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -242,6 +243,16 @@ svg + span,
 span + svg,
 .icon-text-wrapper {
   @apply flex items-center gap-2;
+}
+
+/* Hide scrollbar but keep functionality */
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;  /* Chrome, Safari and Opera */
 }
 
 @keyframes shrink {
