@@ -23,8 +23,8 @@ The application follows a layered architecture:
 - **Middleware**: Handle cross-cutting concerns like authentication and validation
 - **Validation**: Define input validation rules
 - **Config**: Centralized configuration management
-  - `config.js`: Environment variables and defaults
-  - `db.js`: Database connection
+  - `config.ts`: Environment variables and defaults
+  - `db.ts`: Database connection
 
 ## Setup Instructions
 
@@ -57,7 +57,15 @@ The application integrates with the OpenAI API to provide AI-generated responses
 
 If the API key is not provided, the application will use a mock implementation for testing purposes.
 
-### Response Format
+## Streaming Responses
+
+The backend supports streaming AI responses to provide a more interactive experience:
+
+1. The `/api/generate/stream` endpoint uses Server-Sent Events (SSE) to stream responses
+2. Response chunks are sent as they are received from the OpenAI API
+3. The frontend can display these chunks in real-time for a more engaging user experience
+
+## Response Format
 
 The AI responses are formatted before being sent to the frontend:
 
@@ -85,8 +93,8 @@ The application uses MongoDB for data storage:
 
 ### Generate AI Responses
 
-- `POST /api/generate` - Generate AI response (Protected)
-- `GET /api/generate/recent` - Get recent interactions (Protected)
+- `POST /api/generate/generate` - Generate AI response (Protected)
+- `POST /api/generate/stream` - Stream AI response (Protected)
 
 ### Query History
 
